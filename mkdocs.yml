@@ -1,13 +1,35 @@
 site_name: Agent Workspace
 site_url: https://zkmkarlsruhe.github.io/agent-workspace-docs/
 repo_url: https://github.com/zkmkarlsruhe/agent-workspace-docs
+repo_name: zkmkarlsruhe/agent-workspace-docs
 docs_dir: docs
-theme: mkdocs
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+  palette:
+    - scheme: default
+      primary: black
+      accent: deep orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: black
+      accent: deep orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
 markdown_extensions:
   - toc:
       permalink: true
   - tables
   - fenced_code
+  - admonition
+  - pymdownx.superfences
 validation:
   nav:
     omitted_files: warn

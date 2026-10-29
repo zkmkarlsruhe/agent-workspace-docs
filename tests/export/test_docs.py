@@ -43,7 +43,7 @@ class DocsTest(runpy.run_path(str(HERE / "document_checks.py"))["DocumentChecks"
 
     def test_mkdocs_build(self):
         if importlib.util.find_spec("mkdocs") is None:
-            reason = "mkdocs unavailable; install mkdocs==1.6.1 to check Pages"
+            reason = "mkdocs unavailable; install mkdocs-material==9.6.14 to check Pages"
             print("SKIP: " + reason, flush=True)
             self.skipTest(reason)
         with tempfile.TemporaryDirectory(prefix="docs-site-") as site:
