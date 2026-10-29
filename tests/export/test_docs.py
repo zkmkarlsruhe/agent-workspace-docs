@@ -34,8 +34,8 @@ class DocsTest(runpy.run_path(str(HERE / "document_checks.py"))["DocumentChecks"
         pages = sorted(p.relative_to(self.root / "docs").as_posix()
                        for p in (self.root / "docs").rglob("*.md")
                        if p != self.root / "docs/README.md")
-        self.assertEqual(nav, [{"Home": "README.md"}]
-                         + [p for p in pages if not p.startswith("adr/")]
+        self.assertEqual(nav, [{"Home": "README.md"}, {"Whitepaper": "whitepaper.md"}]
+                         + [p for p in pages if not p.startswith("adr/") and p != "whitepaper.md"]
                          + [{"ADRs": [p for p in pages if p.startswith("adr/")]}])
         self.assertIn("https://zkmkarlsruhe.github.io/agent-workspace-docs/", config)
         self.assertIn("https://zkmkarlsruhe.github.io/agent-workspace-docs/",

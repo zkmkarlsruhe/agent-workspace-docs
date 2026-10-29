@@ -32,6 +32,7 @@ Read online at [GitHub Pages](https://zkmkarlsruhe.github.io/agent-workspace-doc
 - [instance.md](docs/instance.md)
 - [mcp-server.md](docs/mcp-server.md)
 - [privacy.md](docs/privacy.md)
+- [whitepaper.md](docs/whitepaper.md)
 
 Released under the [MIT License](LICENSE), with the same terms as the code repository.
 
