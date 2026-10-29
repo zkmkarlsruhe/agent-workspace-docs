@@ -6,6 +6,7 @@ import importlib.util
 import json
 from pathlib import Path
 import runpy
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -42,12 +43,13 @@ class DocsTest(runpy.run_path(str(HERE / "document_checks.py"))["DocumentChecks"
                       (self.root / "README.md").read_text())
 
     def test_mkdocs_build(self):
-        if importlib.util.find_spec("mkdocs") is None:
+        executable = shutil.which("mkdocs")
+        if executable is None:
             reason = "mkdocs unavailable; install mkdocs-material==9.6.14 to check Pages"
             print("SKIP: " + reason, flush=True)
             self.skipTest(reason)
         with tempfile.TemporaryDirectory(prefix="docs-site-") as site:
-            subprocess.run([sys.executable, "-I", "-B", "-m", "mkdocs", "build", "--strict",
+            subprocess.run([executable, "build", "--strict",
                             "--site-dir", site], cwd=self.root, check=True)
 
 

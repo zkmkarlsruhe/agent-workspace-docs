@@ -40,6 +40,7 @@ all installations have the same processing arrangements.
 | Manager SQLite, `/srv/opencode/manager/manager.db` in the reference | Account UID, username, display name, email, slug/slot, issuer/subject binding, project/trash metadata, consent version and acceptance time, personal settings, catalog choices and usage records. Enabled integrations can add connection records, feedback and upload metadata. |
 | Manager connection records | Service app passwords encrypted with AES-GCM using `OC_MASTER_KEY`. The key lives in deployment secrets. Access to both database and key permits decryption. This is not encryption against the operator. |
 | Optional evaluation tables | Bounded root-chat transcripts, titles, project names, counts, evaluation results and transcript-read audit records. The minimal instance does not collect these snapshots. |
+| Knowledge and team tables | Personal collections, team membership and administration audit, Markdown pages, source notes, immutable revisions and project selections. Personal knowledge is account-private; team members can read team history and edit pages. Host and backup administrators can access the database. |
 | Operational logs | Request and lifecycle diagnostics, identity/account identifiers, project/session identifiers, errors and usage metadata. Destinations and rotation depend on the deployment; do not treat logs as anonymous. |
 | Model gateway, providers and integration services | Request content and associated identifiers according to each service's configuration and policy. Local deletion is not proof of remote erasure. |
 | Backups | Copies of databases, workspace storage, configuration and secrets. Backup readers may have access to all personal data. Expiry and restore procedures belong to the operator. |
@@ -81,7 +82,12 @@ transcripts, including trashed projects and the personal settings for a full
 export. It omits hidden paths and Git history, symlinks, configuration,
 credentials, model reasoning and child-session transcripts. Tool calls appear
 as summaries. It is a portable result export, not a complete database dump or
-backup.
+backup. It includes personal knowledge collections and their revision history;
+team collections use a separate export restricted to Team Admins.
+
+Knowledge selected for a project can enter tool results and model context. Removing
+membership prevents subsequent access; it cannot recall text already delivered to
+a chat, provider or downloaded export. See [knowledge access rules](knowledge.md).
 
 ## Deletion and retention
 
@@ -92,8 +98,10 @@ backup.
 | Inactive project | After 30 days without recorded activity, the daily sweep marks it for trash. The directory move waits for a running environment and a non-busy project. |
 | Project trash | Restorable for 30 days from the trash timestamp, then eligible for purge. Physical cleanup depends on a running environment and successful operations; this is not an exact erasure deadline. |
 | Delete a personal skill | Permanent after confirmation; no skill trash. Backups remain separate. |
+| Archive knowledge | Reversible, without automatic expiry. Explicit permanent deletion removes archived pages or collections and their revisions. |
 | Delete the account | Attempts credential revocation, stops/removes runtimes and toolboxes, drains in-flight operations, removes the network, purges personal storage and quotas, then removes account-linked database rows. A subsequent authorized login can create a fresh account. |
 | Usage records after account deletion | Retained under a random `deleted-…` identifier. Other event fields remain, so this is identifier replacement, not a guarantee against re-identification. |
+| Knowledge after account deletion | Personal collections and memberships are deleted; author identifiers are cleared. Team pages, history and team administration audit remain. Personal information written inside page text requires separate content removal; deletion does not redact that text. |
 | Spend ledger after account deletion | Copies the last 48 hours of cost entries under the original UID so deletion cannot reset the daily cap. Old ledger entries are pruned on later account deletions, not by a scheduled expiry job; physical retention can exceed 48 hours. |
 | Evaluation after account deletion | Evaluations and personal feedback are deleted. Chat snapshots lose title, project and transcript; count stubs remain under the replacement identifier. Transcript-read audit records are separate and are not erased by this account deletion. |
 | Logs, backups, external services and downloaded copies | Not purged by the local account-deletion operation. The operator and each recipient must provide their own retention and deletion process. |
