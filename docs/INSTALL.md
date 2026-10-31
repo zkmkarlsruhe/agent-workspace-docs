@@ -53,7 +53,9 @@ for HTTPS; port 80 only redirects. Do not expose ports 4000, 4096, 8080, 9000,
 9100, 5432 or the Docker API publicly.
 
 The fixed example networks are `172.30.0.0/29` for the edge and
-`10.90.0.0/16` for dynamically created person networks. They must not overlap
+`10.90.0.0/16` for dynamically created person networks, plus `10.91.0.0/16`
+for private assistant networks. `OC_ASSISTANT_NET_PREFIX` must match between
+manager and Docker proxy when changing that default. They must not overlap
 host, VPN or site networks. Changing them requires coordinated edits to
 Compose's edge addresses/trusted proxy, the manager's `OC_USER_NET_PREFIX`,
 and Squid's source ACL. This is one stack per VM, with fixed container names.
@@ -184,6 +186,7 @@ last with `sk-`). Set `OC_DOMAIN`, the persistent `OC_IDENTITY_ISSUER`, and the
 upstream `MODEL_API_BASE`, `MODEL_API_KEY`, `MODEL_ID`. For a keyless local
 endpoint set a nonempty dummy key. Never use `localhost` to mean the VM from
 inside LiteLLM; use an address reachable from its Docker network.
+`OC_ADMIN_TOKEN` must contain at least 32 bytes without whitespace or control characters. An empty value disables admin access in the manager; the example stack requires a token.
 
 LiteLLM maps `default` and `small` to the same upstream model. `MODEL_ID` uses
 LiteLLM's `openai/` prefix for an OpenAI-compatible API; `MODEL_API_BASE`
@@ -215,6 +218,12 @@ a trailing `/v1` is rejected. The supported subset is chat completions, models,
 embeddings and optional manager-only image generation/editing. The provider guide
 documents forced fields, response-header filtering and capability requirements.
 The manager does no chat failover; fallback chains require LiteLLM configuration.
+
+For optional semantic knowledge retrieval, configure the embedding model, revision
+and dimensions described in [Personal and team knowledge](knowledge.md#semantic-retrieval-configuration).
+Grant the manager credential access to that fixed route and disclose automatic
+page indexing in the instance notice before enabling it. The minimal instance
+keeps semantic retrieval disabled. No new chat model choice is introduced.
 
 Obtain a certificate with both `OC_DOMAIN` and `*.OC_DOMAIN` as SANs. For a
 trial, Certbot's manual DNS challenge needs no web listener. Substitute your
@@ -514,45 +523,20 @@ services or to the existing deployment are needed.
 
 Complete the ordinary helper trial first. This example helps describe a problem and drafts text for a person to send. It has no knowledge source and must not invent institutional instructions.
 
-### Change the reviewed definition
+### Save the definition
 
-On the VM, open the canonical instance:
+Open `/admin/assistants` with the instance administrator account. Edit **Support**,
+enable it and save. Keep `project_mode: per_task`, empty knowledge sources, skills
+and MCP tools, and the `question` builtin only for this first trial. An empty audience
+permits every account already authorized for the instance; restrict the IdP trial
+audience accordingly.
 
-```sh
-cd /opt/agent-workspace
-nano instance/minimal/instance.yaml
-```
+Assistant definitions live in the manager database. The instance file supplies
+first-start defaults only. Saving needs neither an image build nor a deployment.
+Registered source endpoints and credentials remain installation configuration.
 
-Under the existing `assistants:` list, find `id: support`. Change these fields in that entry; keep its prompt, rules and entry text:
-
-```yaml
-    enabled: true
-    version: 3
-    consent_mode: support
-    evaluation: false
-    audience: []
-```
-
-Use a revision greater than the one currently in your checkout. Do not add a second `assistants:` key. Keep `project_mode: per_task`, `knowledge_sources: []`, `skills: []`, `mcp_tools: []` and `builtin_tools: [question]`. An empty audience permits every account already authorized to use this instance, so keep the IdP trial audience restricted.
-
-Review the instance's consent text and bump its version if its meaning changes. `support` is the current schema's accepted consent mode for enabled assistants; it is not a promise of a production support service. The neutral instance has no invented wiki or service credentials.
-
-### Render and restart
-
-Wait for active work to finish. Stop the test person's environment using **Help**. Then run:
-
-```sh
-cd /opt/agent-workspace/deploy/example
-docker run --rm --network none --userns host --user 0:0 \
-  --entrypoint /render-instance \
-  -v /opt/agent-workspace/instance/minimal:/instance:ro \
-  -v /srv/opencode/base/etc-opencode:/rendered \
-  workspace-manager:local -instance /instance/instance.yaml -out /rendered
-chmod -R a+rX /srv/opencode/base/etc-opencode
-docker compose up -d --force-recreate manager
-```
-
-If validation fails, fix the source definition before continuing. Do not hand-edit generated files. Use your actual manager image reference if it differs.
+Review the instance's consent text and bump its version if its meaning changes.
+The neutral instance has no invented wiki or service credentials.
 
 ### Try the card
 
@@ -562,13 +546,13 @@ If validation fails, fix the source definition before continuing. Do not hand-ed
 4. Ask for a draft summary. Confirm it appears in chat, cites no invented source and sends nothing.
 5. Submit another question from the card. In `per_task` mode this creates a new task, rather than resuming the earlier one.
 
-A changed definition does not upgrade old project pins. Use a new project after changing the revision. To disable this example, set `enabled: false`, rerender and restart.
+A changed definition does not upgrade old project pins. Use a new project after changing the revision. To disable this example, clear **Enabled** in the editor and save.
 
 ### Add real knowledge later
 
 An operator must register the existing central MCP, review its tool allowlist and source instructions, then reference that source ID in `knowledge_sources`. Upstream credentials stay at the gateway. Instance enablement, operator grants and native tool policy remain required.
 
-[The MCP guide](mcp-server.md) uses the application's Go MCP example and explains central gateway registration and assistant source grants. It does not establish strict read-only execution isolation. Current assistants share the person's runtime; their prompts and permissions are not a separate security boundary.
+[The MCP guide](mcp-server.md) uses the application's Go MCP example and explains central gateway registration and assistant source grants. Assistant projects run in dedicated containers with private storage and restricted gateway access. See [the isolation contract](assistant-isolation.md).
 
 ## Optional: build and connect an MCP server
 
@@ -693,3 +677,10 @@ network allowlist, account connection and project permission. It is disabled by 
 
 Follow the [FreeCAD operator guide](freecad.md) for setup, per-person Python
 authority, persistent files and autosave limits before enabling the capability.
+
+## Optional private SMB and mail reads
+
+The minimal instance leaves private reads disabled. To add the credential worker,
+restricted egress, encrypted safe and browser approval flow, follow
+[SMB and mail readers](private-readers.md). These tools do not send mail or write
+to a share. Test against dedicated accounts before enabling real user access.

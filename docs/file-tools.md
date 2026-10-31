@@ -1,8 +1,27 @@
 # Image, vector and PDF tools
 
-The optional `file-tools` integration processes individual project files. Each
+The portal offers two optional MCP groups: **Images** (`images`) and
+**Read documents** (`documents`). Images groups all nine image and vector tools,
+including viewing, generation, editing and local upscaling. Read documents contains
+`pdf_to_text` and `handwriting_to_text`. Enable each group for the account and then
+select it in the project. Both use the existing gateway; public tool names stay unchanged.
+
+Upgrade migration 42 replaces existing `file-tools` catalog selections with both
+groups, including projects in trash. Explicit empty selections and inherited
+selections keep their meaning. Accounts and projects without `file-tools` receive
+no new grant: image viewing, generation and editing now also require the Images
+selection. Existing assistant definitions retain their explicit per-tool allowlists.
+
+The `file-tools` worker integration and the `images` model integration remain separate
+operator controls. Their scopes, service credentials and processing boundaries are
+unchanged. The optional `file-tools` integration processes individual project files. Each
 operation saves new files and returns their paths for another operation to consume.
-Originals remain unchanged. Word and spreadsheets are outside this integration.
+Originals remain unchanged. Office editing is outside these project tools.
+The same isolated worker also serves portal knowledge imports: internal
+`document_extract` accepts PDF, DOCX, XLSX and PPTX bytes and returns bounded
+Markdown text, source locations and extraction warnings. This operation is not
+a project MCP tool. Collection originals and resulting pages follow the
+[knowledge import and retention rules](knowledge.md#retained-pdf-and-office-documents).
 Handwriting transcription uses a separately configured vision route.
 
 | Tool | Input | Output |
@@ -12,6 +31,7 @@ Handwriting transcription uses a separately configured vision route.
 | `svg_create` | Complete SVG markup | Validated SVG and PNG preview |
 | `svg_edit` | Source path, source SHA256, replacement markup | New SVG and PNG preview |
 | `image_transform` | Image; crop, dimensions or format | PNG, JPEG or WebP |
+| `image_upscale` | Raster image; scale 2 or 4 | Reconstructed PNG with scaled alpha |
 | `pdf_to_text` | PDF; optional inclusive page range | UTF-8 text and page mapping |
 | `handwriting_to_text` | Image or explicit PDF page | Literal UTF-8 transcript and review metadata |
 
@@ -26,8 +46,10 @@ representation for visual inspection and requires a source in the session's proj
 ## Processing contract
 
 The manager resolves person and project from the session. Absolute source paths
-must belong to that project. The file service receives bytes, never credentials,
-workspace mounts or caller-selected URLs. Every local file operation checks the
+must belong to that project. By default the file service receives bytes; the
+experimental reference transport below grants access to exact files instead.
+Neither transport gives the service workspace mounts or caller-selected URLs.
+Every local file operation checks the
 integration and catalog grants, reads a bounded source, processes it, and saves new
 results with SHA256 hashes. Metadata records the source, options, engine/version,
 page mapping where applicable, and warnings.
@@ -62,6 +84,38 @@ PDF extraction uses only an existing text layer. A page with no text is reported
 as blank or potentially scanned; the tool cannot distinguish those cases without
 OCR. No-text documents fail explicitly. Mixed documents return partial text and
 page warnings. Text-layer presence does not prove correct reading order or accuracy.
+
+## Content-aware upscaling
+
+`image_upscale` enlarges a project image with a bundled Real-ESRGAN model:
+
+```json
+{"path":"input/photo.png","options":{"scale":2}}
+```
+
+The scale is 2 by default; 4 is also accepted. The output is a new PNG and a
+metadata file. The original stays unchanged. Input is limited to 2.5 megapixels,
+output to 25 megapixels, and files to the existing 20 MiB bound. Crop or resize
+explicitly when necessary; the worker never silently reduces the source.
+Animated inputs are refused. EXIF orientation is applied before processing.
+
+Inference runs on CPU inside the existing isolated file worker. The image is not
+sent to an external model service. Weights, architecture and license are fetched
+and SHA256-verified at build time; runtime needs no downloads. The build exports
+an ONNX artifact, so the runtime does not include the training framework.
+Both byte and invocation-scoped reference transports support this operation.
+
+The model reconstructs RGB detail at its native 4x scale. A 2x request resamples
+that result. Alpha is scaled separately with Lanczos; it is not reconstructed.
+Metadata records source and model hashes, engine version, input/output dimensions,
+requested/native scale and alpha handling. Text, faces and fine structures can
+change: compare the result with the source. Upscaling cannot verify unreadable
+text or recover factual detail with certainty. Use `image_transform` for ordinary
+resampling and exact dimensions.
+
+The model and its architecture use the upstream BSD-3-Clause license, bundled at
+`/opt/models/Real-ESRGAN.LICENSE`; see the
+[upstream model repository](https://github.com/xinntao/Real-ESRGAN).
 
 ## Handwriting transcription
 
@@ -128,7 +182,9 @@ This integration is disabled by default. No new public hostname is required.
 
    Merge the entries into the existing maps. Do not replace the other integrations.
 3. Merge `deploy/example/file-tools/catalog.json` into the
-   installation's catalog. It uses the existing builtin `mcp` kind.
+   installation's catalog, replacing the old `file-tools` catalog entry. Both groups
+   use the existing builtin `mcp` kind. For image viewing/generation/editing, keep
+   the `images` integration and its model routes enabled as well.
 4. Add `deploy/example/file-tools/compose.yaml` after
    `deploy/example/compose.yaml`. Paths resolve relative to that base file.
    It sets `OC_FILE_TOOLS_URL=http://file-tools:8080` and creates an internal network
@@ -174,6 +230,80 @@ CairoSVG is LGPLv3; rembg, VTracer, BiRefNet lite, defusedxml and Pillow use per
 licenses, and pypdf uses BSD-3-Clause. Model quality on real institutional images
 still requires a representative acceptance set.
 
+## Experimental reference transport
+
+An optional `v1alpha` transport moves file reads and result writes for
+`background_remove`, `raster_to_vector`, `svg_create`, `svg_edit`, `image_transform`,
+`image_upscale` and `pdf_to_text` into the file service. Tool names, arguments and result schema
+remain unchanged. Installations without the reference overlay retain byte transport;
+a failed reference invocation never falls back to it. This is a consumer of the
+extension file host, not a complete plugin runtime or a stable public service API.
+
+`handwriting_to_text` remains manager-owned: its bounded byte preparation uses
+`handwriting_prepare`, then the manager admits and bills the fixed model call and
+saves the transcript. Neither operation is accepted by the reference endpoint.
+The worker receives no model credential, model choice or billed-call authority.
+
+Deploy the worker before the manager. The worker accepts the old `image_transform`
+request with singular `output` and the new request with an `outputs` array. It rejects
+requests containing both fields, duplicate references, duplicate JSON keys or unknown
+fields. Legacy normalization applies only to the exact old `image_transform` shape;
+other operations require the new transport. The manager continues to send `outputs`.
+An old worker cannot handle the new manager's requests.
+
+In addition to the ordinary file-tools overlay, include `deploy/example/file-tools/references.yaml` after it.
+Keep `OC_FILE_TOOLS_SECRET` as the process endpoint credential. Supply a separate
+random `OC_FILE_TOOLS_HOST_SECRET` of at least 32 bytes to both services through
+the operator's secret store. Empty or unset on the manager leaves the route and
+reference dispatcher disabled. A reused or invalid callback secret fails startup.
+Restart both services when rotating credentials. No migration is needed.
+
+The overlay sets the worker's `OC_WORKSPACE_HOST_URL=http://manager:4000`, the
+manager's private gateway origin on the internal file-tools network. Adapt the
+origin if your internal listener differs. Do not publish that listener or expose
+the worker externally. The callback origin cannot contain a path, query or user
+credentials; redirects and environment HTTP proxies are disabled for callbacks.
+
+Each invocation receives short-lived references for its exact source and outputs:
+one result, a PNG preview for SVG operations, and metadata. `svg_create` has no input
+reference. SVG markup travels in the bounded request; `svg_edit` compares
+`source_sha256` with the source bytes fetched through its reference before processing
+or writing. A stale hash returns `SOURCE_CHANGED`. Every transfer checks the current
+account, runtime, session project, selected tool and scope. The worker has no
+workspace mount or Docker access. The manager confirms every returned output path
+and hash, including previews,
+and the metadata path against its own write receipts before returning them.
+Receipts recheck current scope. Completed files survive invocation expiry.
+
+The limits remain 20 MiB per file and 25 megapixels, with SVG markup capped at
+512 KiB. Metadata is capped at 1 MiB. Reference requests are capped at 4 MiB to
+accommodate JSON-escaped SVG markup and share the existing single worker slot.
+The worker stops after 90 seconds; the manager waits at most 110 seconds and grants
+expire after two minutes. The worker validates all processing outputs before the
+first write. A preview or metadata failure returns previously confirmed outputs as
+`partial`, with warnings; no later files are written. Failure on the first output
+returns an error because there is no confirmed artifact to report.
+Timeouts, cancellation and uncertain writes never trigger an automatic retry or
+fallback; inspect project files before trying again. Publication is not atomic.
+An admitted write may finish after cancellation or leave a partial new file after
+abrupt termination. Existing files are never overwritten.
+
+The integration check requires the worker's pinned Python packages in a separate
+virtual environment. From `manager/`, run:
+
+```sh
+OC_EXTENSION_TEST_PYTHON=/path/to/venv/bin/python \
+go test -race -count=1 ./internal/extensionhost/workspace -run '^TestReferencePythonChain$' -v
+```
+
+It checks actual SVG creation/editing, resizing, tracing and PDF extraction,
+project boundaries, stale hashes, revoked scope, lost write confirmations, metadata
+and hashes using SQLite and temporary files. The environment needs the corresponding
+packages from `services/file-tools/requirements.txt`. Background removal transport
+uses a segmentation fixture in unit tests; this check does not run its model.
+The chain uses a container-engine fixture; Docker network/listener acceptance
+remains a separate deployment check.
+
 ## Verification
 
 Worker checks run offline in the built image:
@@ -182,7 +312,7 @@ Worker checks run offline in the built image:
 docker build -t workspace-file-tools:local services/file-tools
 docker run --rm --network none \
   -v "$PWD/services/file-tools:/tests:ro" -w /tests \
-  workspace-file-tools:local python -m unittest -v test_worker test_server
+  workspace-file-tools:local python -m unittest -v test_worker test_server test_reference_worker
 ```
 
 Go tests cover project boundaries, capability gates, stale SVG sources, partial

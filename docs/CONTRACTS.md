@@ -2,14 +2,25 @@
 
 See [IDENTITY.md](IDENTITY.md) for the identity contract.
 
-Status: schema, resolver, tool names and event wire types are specified in
-`manager/internal/integration` with tests. Production instance loading now
-resolves the shipped builtin manifests. Selection gates startup, MCP tools,
-portal adapters, catalog entries, prompt sections and readiness. Instance
-`integration_grants` is an explicit operator-supplied snapshot during this
-builtin transition; stored grants and service tokens remain subsequent work.
-Consent storage, durable deletion jobs, event transport and the scoped API
-remain contracts, not claims about today's deployment. See [INSTALL.md](INSTALL.md) for minimal-instance validation.
+Status: selected manifests, persistent operator grants, per-integration consent,
+service tokens, deletion obligations and event delivery are implemented. Instance
+`integration_grants` seeds new database policies; startup never overwrites existing
+revocations. Current database authority gates operations and background evaluation.
+The operator UI is `/extensions`; service endpoints remain experimental
+`/api/v1alpha/extensions/`. See [authority and lifecycle](extension-authority.md).
+
+All six local file processors use bounded invocation references when the file host
+is configured, including preview and metadata receipts. Handwriting model calls
+remain in the manager. File sources provide connection-bound readers and separate
+conditional writes. Nextcloud and the optional OpenCloud adapter use those boundaries;
+OpenCloud is disabled unless configured and selected.
+
+The persistent workload controller owns allocations, quotas, deletion barriers and
+cleanup. Managed container plugins declare pinned images and bounded resources;
+the independent Docker proxy validates the complete runtime shape. Browser pages
+use a separate authenticated origin. See [container plugins](container-plugins.md)
+and [workload policy](workload-controller.md). Application-specific save/close
+protocols remain with their adapters. This does not expose arbitrary Docker access.
 
 The first public release does not require a service API. Any early API is experimental `v1alpha`, or
 absent. The stable `/api/v1` promise below starts only when explicitly released;
@@ -266,7 +277,7 @@ service event names. Version 1 defines:
 |---|---|---|
 | `chat.finished` / `ChatFinished` | `chat_id`, `project_id`, `session_id` / `ChatFinishedPayload` | A completed root-chat run is durably recorded and eligible for scoped retrieval. A later run gets a new event ID; transient idle notifications and retries are not separate completions. |
 | `account.deleting` / `AccountDeleting` | `operation_id` / `AccountDeletingPayload` | The durable deletion/revocation operation is recorded. Dispatch is authorized from the data-holder registry even when the integration is disabled. |
-| `consent.changed` / `ConsentChanged` | `scope`, `version`, `accepted` / `ConsentChangedPayload` | The consent decision is committed. False means withdrawn, not “older consent still usable.” |
+| `consent.changed` / `ConsentChanged` | `scope`, `version`, `accepted`, optional `base_version` / `ConsentChangedPayload` | The consent decision is committed. False means withdrawn, not “older consent still usable.” |
 | `usage.recorded` / `UsageRecorded` | `usage_id` / `UsageRecordedPayload` | A metered usage record is committed. This names the usage event proposed in plan §7; footprint reads the record through scoped access. |
 
 ```json
@@ -280,6 +291,25 @@ service event names. Version 1 defines:
   "data": {"chat_id":"chat-3","project_id":"project-2","session_id":"session-9"}
 }
 ```
+
+`ConsentChangedPayload.version` remains an integer. Integration decisions use
+that integration's notice version. Base decisions use `scope: "base"`,
+`version: 0` and a string `base_version` containing the base notice hash.
+
+The extension alpha API (`/api/v1alpha/extensions/events`, with `/resync` for
+snapshots) checks the selected manifest, enabled policy, subscriptions, grants,
+current account and consent before delivery. Chat events and snapshot chat IDs
+require `chat.finished` and `transcripts:read`; consent/usage events and snapshot
+account IDs require the corresponding subscription and `users:read`. Consent
+notifications cover only the integration's own scope and the base scope.
+Withdrawals can bypass current authority only for an integration authorized for
+that account incarnation before the event; this observer history persists across
+restarts. Deletion obligations retain their separate holder-based exception.
+Chat IDs must still exist and pass the shared assistant privacy gate on every
+delivery, including existing snapshot pages. New snapshots check capacity before
+capture: two active snapshots per integration, eight globally, expiring after ten
+minutes. Retention removes only the contiguous expired event prefix, preserving
+newer events when later sequence numbers carry older timestamps.
 
 IDs above are opaque illustrative values. IDs are stable across redelivery,
 not timestamps or sortable cursors. The envelope's timestamp is RFC3339 UTC.

@@ -26,7 +26,12 @@ all installations have the same processing arrangements.
    queries, URLs, MCP arguments and cloud-file operations can reveal task
    content. Retrieved data can enter the chat and subsequent model context.
    Disabling an integration does not recall requests already sent.
-5. Downloads and ZIP exports create copies on the person's device. Optional
+5. Optional semantic knowledge search automatically sends saved page titles and
+   bodies to the configured embedding provider, even without a chat. Search queries
+   use the same endpoint. Derived vectors and chunk text stay in the manager database
+   and follow current page permissions and permanent deletion. Historical revisions
+   and source notes are not embedded. The instance notice must identify the recipient.
+6. Downloads and ZIP exports create copies on the person's device. Optional
    cloud-file uploads create copies at the connected service. Those copies
    have separate access and deletion rules.
 
@@ -40,10 +45,17 @@ all installations have the same processing arrangements.
 | Manager SQLite, `/srv/opencode/manager/manager.db` in the reference | Account UID, username, display name, email, slug/slot, issuer/subject binding, project/trash metadata, consent version and acceptance time, personal settings, catalog choices and usage records. Enabled integrations can add connection records, feedback and upload metadata. |
 | Manager connection records | Service app passwords encrypted with AES-GCM using `OC_MASTER_KEY`. The key lives in deployment secrets. Access to both database and key permits decryption. This is not encryption against the operator. |
 | Optional evaluation tables | Bounded root-chat transcripts, titles, project names, counts, evaluation results and transcript-read audit records. The minimal instance does not collect these snapshots. |
-| Knowledge and team tables | Personal collections, team membership and administration audit, Markdown pages, source notes, immutable revisions and project selections. Personal knowledge is account-private; team members can read team history and edit pages. Host and backup administrators can access the database. |
+| Task template tables | Account-private task definitions and current revisions. Each created project retains the definition revision used, submitted values and rendered task text. Host and backup administrators can access the database. |
+| Knowledge and team tables | Personal collections, team membership and administration audit, Markdown pages, retained original documents and extraction details, source notes, immutable revisions, derived search vectors, indexing state and project selections. Personal knowledge is account-private; team members can read team history and edit pages. Host and backup administrators can access the database. |
 | Operational logs | Request and lifecycle diagnostics, identity/account identifiers, project/session identifiers, errors and usage metadata. Destinations and rotation depend on the deployment; do not treat logs as anonymous. |
 | Model gateway, providers and integration services | Request content and associated identifiers according to each service's configuration and policy. Local deletion is not proof of remote erasure. |
 | Backups | Copies of databases, workspace storage, configuration and secrets. Backup readers may have access to all personal data. Expiry and restore procedures belong to the operator. |
+
+Tool evidence in these snapshots is limited to execution state, exit codes,
+truncation, result counts, search coverage, browser approval state and document
+check counts. It does not copy returned mail bodies, document text, passwords or
+clipboard contents. A refreshed snapshot invalidates its previous evaluation;
+collection and evaluation still require the current consent and enabled policy.
 
 Usage events include account, project and session identifiers, capability,
 model/tool, timestamps, token counts, estimated cost/emissions, latency,
@@ -79,15 +91,38 @@ data it already stored.
 
 The account export contains visible project files and readable root-chat
 transcripts, including trashed projects and the personal settings for a full
-export. It omits hidden paths and Git history, symlinks, configuration,
+export. Full exports include `remembered.md`, the personal instructions outside
+the managed profile, and start the personal runtime when needed to read it.
+A failed memory read fails the export instead of silently omitting it.
+If a project is still moving into trash, export returns HTTP 409 before starting
+the ZIP response. Retry after the move finishes. Missing expected trash files
+also fail the export rather than producing an apparently complete archive.
+It omits other hidden paths and Git history, symlinks, configuration,
 credentials, model reasoning and child-session transcripts. Tool calls appear
 as summaries. It is a portable result export, not a complete database dump or
-backup. It includes personal knowledge collections and their revision history;
-team collections use a separate export restricted to Team Admins.
+backup. It includes personal knowledge collections, retained originals and their revision history;
+team collections use a separate export restricted to Team Admins. Full account exports also
+include personal task definitions and project task provenance; a single-project
+export includes only that project's provenance.
+
+Document imports require confirmation of the collection audience. Originals remain
+in the database independently of projects and follow current collection access.
+The internal file worker receives bytes for bounded extraction; searchable text
+follows the same embedding and chat-provider rules as authored pages.
 
 Knowledge selected for a project can enter tool results and model context. Removing
 membership prevents subsequent access; it cannot recall text already delivered to
 a chat, provider or downloaded export. See [knowledge access rules](knowledge.md).
+
+Personal memories can be reviewed, edited, downloaded or cleared under
+**About me & how I work → Personal memories**. The canonical text is the
+personal runtime configuration `AGENTS.md`; the editor preserves the managed
+profile and refuses stale saves. It does not automatically collect facts from
+conversations. This text is available to general chats and can be sent to the
+configured model; it is not copied into restricted Assistant runtimes. Keep
+secrets out of it. Clearing memories leaves earlier chats, exports and backups
+unchanged. Account deletion purges the personal configuration with the rest
+of the owner’s runtime storage.
 
 ## Deletion and retention
 
@@ -97,11 +132,14 @@ a chat, provider or downloaded export. See [knowledge access rules](knowledge.md
 | Archived session | Auto-archive preserves transcripts and files. Restore is available in the running environment; archiving does not reset project retention. See [instance options](instance.md#dormant-session-auto-archive). |
 | Inactive project | After 30 days without recorded activity, the daily sweep marks it for trash. The directory move waits for a running environment and a non-busy project. |
 | Project trash | Restorable for 30 days from the trash timestamp, then eligible for purge. Physical cleanup depends on a running environment and successful operations; this is not an exact erasure deadline. |
+| Clear personal memories | Removes unmanaged remembered instructions from the personal configuration, preserving the managed profile. Earlier chat text, exports and backups remain separate. |
+| Delete a task template | Removes the reusable definition. Existing project provenance survives until the project is permanently purged; account deletion removes both. |
+| Personal safe | Password-encrypted database blob; unlock keys exist only temporarily in service memory. Ordinary account export excludes it; separate encrypted backup is available. Account deletion removes the blob, not independent backups. See [personal safe](personal-safe.md). |
 | Delete a personal skill | Permanent after confirmation; no skill trash. Backups remain separate. |
-| Archive knowledge | Reversible, without automatic expiry. Explicit permanent deletion removes archived pages or collections and their revisions. |
+| Archive knowledge | Reversible, without automatic expiry. Explicit permanent deletion removes archived pages or collections, their revisions and attached originals. Failed imports can be explicitly deleted without archiving a page. |
 | Delete the account | Attempts credential revocation, stops/removes runtimes and toolboxes, drains in-flight operations, removes the network, purges personal storage and quotas, then removes account-linked database rows. A subsequent authorized login can create a fresh account. |
 | Usage records after account deletion | Retained under a random `deleted-…` identifier. Other event fields remain, so this is identifier replacement, not a guarantee against re-identification. |
-| Knowledge after account deletion | Personal collections and memberships are deleted; author identifiers are cleared. Team pages, history and team administration audit remain. Personal information written inside page text requires separate content removal; deletion does not redact that text. |
+| Knowledge after account deletion | Personal collections, their originals and memberships are deleted; author identifiers are cleared. Team pages, originals, history and team administration audit remain. Personal information written inside page text requires separate content removal; deletion does not redact that text. |
 | Spend ledger after account deletion | Copies the last 48 hours of cost entries under the original UID so deletion cannot reset the daily cap. Old ledger entries are pruned on later account deletions, not by a scheduled expiry job; physical retention can exceed 48 hours. |
 | Evaluation after account deletion | Evaluations and personal feedback are deleted. Chat snapshots lose title, project and transcript; count stubs remain under the replacement identifier. Transcript-read audit records are separate and are not erased by this account deletion. |
 | Logs, backups, external services and downloaded copies | Not purged by the local account-deletion operation. The operator and each recipient must provide their own retention and deletion process. |

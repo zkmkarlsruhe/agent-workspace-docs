@@ -19,7 +19,7 @@ Go manager ------------------------> SQLite: identity, projects, usage
   |-> filtered Docker proxy -------> Docker: per-person containers/networks
   |-> filesystem provisioner ------> host directories and XFS quotas
   |
-  `-> OpenCode runtime: one per active person
+  `-> OpenCode runtimes: one general environment per active person, plus isolated assistant projects
         |-> persistent workspace, config, data and state
         |-> manager model gateway -> LiteLLM -> configured model endpoint
         |-> manager integration gateways -> enabled services
@@ -47,7 +47,9 @@ precondition](privacy.md#identity-provider-precondition).
 
 ## Lifecycle and storage
 
-One runtime serves all projects and chats of one active person. It starts
+One general runtime serves the ordinary projects and chats of one active person.
+Each assistant project instead has its own container, storage and gateway identity;
+see [assistant project isolation](assistant-isolation.md). It starts
 on demand, and the manager observes runtime activity to stop idle environments
 or drain environments that reach their lifetime limit. A stopped runtime can
 be recreated with the same persistent data. Reconciliation handles manager
@@ -58,6 +60,15 @@ names come from the instance. Git snapshots support file undo within projects;
 they are not a backup. File operations go through the person's runtime.
 Project trash and account deletion have separate lifecycles, described in
 [privacy](privacy.md#deletion-and-retention).
+
+Remote reads now have a small [file-source boundary](file-sources.md). Nextcloud
+listing and import use a connection-bound reader; authentication and WebDAV
+details stay in its adapter. A configured connection registry resolves current
+credentials per read operation. Sync uses separate stat and conditional-write
+capabilities. The optional [OpenCloud adapter](opencloud.md) supports OAuth with
+PKCE, drive discovery, reads and conditional uploads. A complete live OpenCloud
+token exchange and authenticated DAV check remain open. Provider endpoints and
+client identity are operator configuration; users connect their own accounts.
 
 The reference layout stores manager SQLite data under
 `/srv/opencode/manager/` and personal workspace, home, configuration, runtime
@@ -157,3 +168,19 @@ choices are omitted.
 - [D60: Networkless toolboxes](adr/d60-toolboxes.md)
 - [D62: Product and instance names](adr/d62-product-name.md)
 - [D64: Username identity guard](adr/d64-identity-guard.md)
+
+### Workload profiles
+
+The container runtime selects a compiled, reviewed profile through `runtime.Spec.Profile`:
+`workspace` (also the default), `assistant`, `toolbox`, `office`, or `freecad`. Profiles own resource limits,
+working directory, temporary filesystems, init and offline behavior. Callers cannot override
+these fields. Unknown profiles and network requests for the offline toolbox fail before
+contacting Docker. The assistant profile requires an IPv4 network, disables recursive DNS
+and maps only the private gateway hostname. All profiles retain the non-root user, read-only root filesystem, dropped
+capabilities and no-new-privileges setting. The independent Docker proxy still validates the
+actual image, mounts, command, environment and per-user network.
+
+This replaces feature flags in the runtime request; it does not add an extension-defined
+profile loader or a generic workload controller. Office, FreeCAD and toolbox lifecycle
+adapters still own their allocation and cleanup. Dynamic operator-approved profiles,
+durable allocation records and shared reconciliation remain follow-up work.

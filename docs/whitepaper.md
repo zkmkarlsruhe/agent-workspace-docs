@@ -1,6 +1,6 @@
 # Agent Workspace
 
-Whitepaper · As of 27 October 2026
+Whitepaper · As of 31 October 2026
 
 A personal workspace in the browser with a coding agent as a helper, including for people without programming skills
 
@@ -14,7 +14,7 @@ Each person gets their own persistent environment with OpenCode. They describe a
 
 Since mid-October 2026, the prototype has been running in an institutional deployment. Access requires an account admitted by the operator and acceptance of the prototype notice. The portal, personal environments, catalogs, optional Nextcloud integration, and cost and CO₂ estimates per project and chat are implemented; the minimal instance enables no optional integrations. Language model requests go to the endpoint configured by the operator, who determines the providers and their data handling.
 
-The state as of 27 October includes the verified adaptation to OpenCode 2.2.0 and an implemented watchdog for stalled agent runs. Rollout and checks in the running system are still pending. Protection against incorrect assignment of user accounts is also implemented.
+The current implementation includes isolated assistant projects, personal memories, editable personal skills, task templates, an encrypted personal safe and browser approval for optional private reads. Image tools include local upscaling. Protection against incorrect assignment of user accounts and a watchdog for stalled runs are implemented. Each optional integration still needs operator configuration and acceptance checks in its target environment.
 
 ## 1. Starting point
 
@@ -28,7 +28,7 @@ What is needed is a way to make these capabilities widely available without burd
 
 The agent is a *helper in the background*, rather than a developer tool. Four principles follow:
 
-- **One workspace per person, in the browser.** No installation. Each person has their own persistent environment at a personal address. All their chats and projects live there.
+- **One workspace per person, in the browser.** No installation. Each person has their own persistent environment at a personal address. Ordinary projects share the personal environment; assistant projects use separate containers and storage.
 - **Tasks instead of repositories.** To get something done, a person describes the task in one sentence. The system creates a clearly named project folder and opens a session directly in it. Version control runs invisibly in the background and serves only to undo changes.
 - **Central credentials stay with the manager.** The key for the model endpoint and the credentials for the optional Nextcloud integration stay with the manager. They are not passed into the personal environment. The agent can read files in its environment; secrets stored there would be accessible to it.
 - **Reuse instead of building.** The OpenCode server and its web interface provide the foundation. Authentication, model access and tools come from existing services. The manager adds the portal, connects the services and adapts the interface to the instance.
@@ -55,7 +55,7 @@ The system consists of a small number of components. Figure 1 shows how they fit
 
 ### 4.1 One environment per person
 
-Each person gets their own container with an unmodified OpenCode server. One server manages multiple chats and project folders. This requires one container per person, rather than one per chat. Working data is stored outside the container, in a mounted personal directory on the host: projects, chat histories, personal skills and settings. The container itself is replaceable. Saved projects, chats and settings survive a container replacement.
+Each person gets their own container with an unmodified OpenCode server. One server manages multiple chats and project folders. Ordinary projects share one container per person. Each assistant project has a dedicated container with its own files, chat database and gateway identity. The [isolation guide](assistant-isolation.md) describes the enforced boundary. Working data is stored outside the container, in a mounted personal directory on the host: projects, chat histories, personal skills and settings. The container itself is replaceable. Saved projects, chats and settings survive a container replacement.
 
 The environment runs only when needed. It starts on the first request and stops when no agent is working and no browser is connected. A running task is never interrupted merely because a tab was closed.
 
@@ -83,13 +83,13 @@ A project is a folder with a clear structure: in the minimal instance, `inbox/` 
 
 The implemented watchdog observes running main agents and subagents. If new work steps, output or tool activity stop appearing, the portal displays a notice. Repeated model calls and their waiting time are displayed separately. Open questions do not count as a stall. A lack of output alone does not prove that a run is stuck.
 
-The person can stop an individual subagent through the portal so that the main agent can continue. The watchdog does not abort anything automatically. Background subagents must be stopped individually. The feature is implemented; final checks and rollout are still pending.
+The person can stop an individual subagent through the portal so that the main agent can continue. The watchdog does not abort anything automatically. Background subagents must be stopped individually. Check stall detection and stop controls with the configured runtime before admitting users; the notice alone does not establish that a task should be interrupted.
 
 ## 5. Design decisions
 
 ### 5.1 Central keys stay with the manager
 
-The agent has full shell access within its environment. It can read everything there, including configuration files and environment variables. An API key in the container would therefore be visible to the person and could leak out, for example through an instruction injected into a document being read.
+In an ordinary project, the agent has full shell access within the personal environment. Restricted assistant projects deny shell access and use a separate gateway identity. It can read everything there, including configuration files and environment variables. An API key in the container would therefore be visible to the person and could leak out, for example through an instruction injected into a document being read.
 
 The environment therefore knows only an internal address without a key. The session manager receives every model call and identifies the person from the isolated network it comes from. It removes all identity and authorization information supplied by the client and inserts its own: a central key and the person's identifier. This allows usage and costs to be attributed per person through the configured model gateway without anyone holding a key. The identity cannot be forged through this path: without a key, the environment can reach the endpoint only through the manager.
 
@@ -148,15 +148,15 @@ An additional identity guard binds the username to a stable identifier from the 
 
 ## 7. Why not an existing platform?
 
-Coder, JupyterHub and Sablier were among the options examined during planning. They did not cover the required combination of a personal OpenCode environment, authentication, a task-oriented portal and detection of running agents. A dedicated manager therefore connects the existing components. For OpenCode 2.2.0, the interfaces used, the configuration and the web interface adaptations have been checked. Verification in the running system is still pending.
+Coder, JupyterHub and Sablier were among the options examined during planning. They did not cover the required combination of a personal OpenCode environment, authentication, a task-oriented portal and detection of running agents. A dedicated manager therefore connects the existing components. For OpenCode 2.2.0, the interfaces used, the configuration and the web interface adaptations have been checked. The [installation guide](INSTALL.md) defines acceptance checks for each new deployment.
 
 ## 8. Next steps
 
-The prototype is the foundation for further work. The next milestones are planned in this order; no dates are promised.
+The neutral reference configuration, instance separation and public code and
+documentation repositories are available. They remain a prototype, not a stable
+service contract. A clean installation must pass the operator acceptance sequence.
 
-- **M3: Separate institution and platform.** Internal integrations are moved into their own modules. An instance file describes which authentication, services and visual design an institution uses.
-- **M4: A reproducible reference instance.** Other institutions should be able to operate a neutral instance on an empty VM by following a guide. This includes authentication, projects, chat and result downloads.
-- **M5: Publish as open source.** Before publication, internal information and components that cannot be distributed are removed, and licenses are checked. The institutional deployment should then use the public version with its own modules.
-- **M6: From individual task to reusable tool.** Phase 2 envisages scheduled runs per project, small web applications built from a project, and their use by colleagues within the institution. Details will be developed with partner institutions and decided before implementation.
-
-Comments, experiences with similar approaches and suggestions for components that may have been overlooked are welcome.
+- Complete real-provider acceptance for optional connections; OpenCloud token exchange and authenticated DAV remain unverified in the temporary smoke test.
+- Check the office workflows, model behavior and access boundaries with the intended users and their files.
+- Keep public code and documentation releases aligned, including optional worker sources and setup instructions.
+- Scheduled runs, hosted project applications and mail sending remain future work. They require separate product and authorization decisions.

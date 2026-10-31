@@ -44,15 +44,15 @@
 
   <!-- user zone -->
   <rect class="zone" x="20" y="345" width="400" height="110" rx="8"/>
-  <text class="lab" x="220" y="468" text-anchor="middle">isolated network per person, no direct internet access</text>
+  <text class="lab" x="220" y="468" text-anchor="middle">isolated networks; assistant projects have separate storage</text>
   <rect class="user" x="35" y="372" width="175" height="70" rx="6"/>
-  <text class="t" x="122" y="395" text-anchor="middle">Environment A</text>
+  <text class="t" x="122" y="395" text-anchor="middle">Personal environment</text>
   <text class="s" x="122" y="412" text-anchor="middle">OpenCode server</text>
   <text class="s" x="122" y="428" text-anchor="middle">many chats, many projects</text>
   <rect class="user" x="230" y="372" width="175" height="70" rx="6"/>
-  <text class="t" x="317" y="395" text-anchor="middle">Environment B</text>
+  <text class="t" x="317" y="395" text-anchor="middle">Assistant project</text>
   <text class="s" x="317" y="412" text-anchor="middle">OpenCode server</text>
-  <text class="s" x="317" y="428" text-anchor="middle">many chats, many projects</text>
+  <text class="s" x="317" y="428" text-anchor="middle">one project, private state</text>
   <path class="l" d="M122,312 V372" marker-end="url(#a)" marker-start="url(#a)"/>
   <path class="l" d="M317,312 V372" marker-end="url(#a)" marker-start="url(#a)"/>
 

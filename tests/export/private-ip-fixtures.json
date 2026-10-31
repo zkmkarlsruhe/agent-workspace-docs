@@ -17,18 +17,26 @@
   "docs/IDENTITY.md": [
     "172.30.0.2"
   ],
-  "docs/INSTALL.md": [
-    "10.90.0.0",
-    "172.30.0.0",
-    "172.30.0.2",
-    "192.168.0.0"
-  ],
-  "manager/cmd/manager/admin_auth_test.go": [
-    "10.90.1.10"
-  ],
+  "docs/INSTALL.md": {
+    "10.90.0.0": "Documented deployment network default.",
+    "10.91.0.0": "Default internal assistant network pool; configurable per installation.",
+    "172.30.0.0": "Documented deployment network default.",
+    "172.30.0.2": "Documented deployment network default.",
+    "192.168.0.0": "Documented deployment network default."
+  },
+  "docs/container-plugins.md": {
+    "10.92.0.0": "Documented reserved pool for isolated managed plugin networks; no deployed host."
+  },
+  "manager/cmd/manager/admin_auth_test.go": {
+    "10.90.1.10": "Existing synthetic network fixture; no deployed host.",
+    "10.92.1.11": "Synthetic plugin isolation or gateway identity fixture; no deployed host."
+  },
   "manager/cmd/manager/consent_e2e_test.go": [
     "10.0.0.2"
   ],
+  "manager/cmd/manager/container_plugins.go": {
+    "10.92.0.0": "Reserved plugin network pool, validated against runtime network configuration."
+  },
   "manager/cmd/manager/portal_e2e_test.go": [
     "10.0.0.0",
     "10.0.0.2"
@@ -50,6 +58,18 @@
   "manager/internal/config/identity_recipe_test.go": [
     "172.30.0.2"
   ],
+  "manager/internal/containerplugin/service_test.go": {
+    "10.90.1.10": "Synthetic plugin isolation or gateway identity fixture; no deployed host.",
+    "10.90.2.10": "Synthetic plugin isolation or gateway identity fixture; no deployed host.",
+    "10.91.1.10": "Synthetic plugin isolation or gateway identity fixture; no deployed host.",
+    "10.92.1.11": "Synthetic plugin isolation or gateway identity fixture; no deployed host."
+  },
+  "manager/internal/dockerproxy/assistant_test.go": {
+    "10.90.4.3": "Synthetic assistant network boundary fixture; no deployed host.",
+    "10.91.4.10": "Synthetic assistant network boundary fixture; no deployed host.",
+    "10.91.4.2": "Synthetic assistant network boundary fixture; no deployed host.",
+    "10.91.5.10": "Synthetic assistant network boundary fixture; no deployed host."
+  },
   "manager/internal/dockerproxy/freecad_test.go": [
     "10.90.4.12",
     "10.90.5.12"
@@ -57,13 +77,21 @@
   "manager/internal/dockerproxy/live_test.go": [
     "10.199.249.0",
     "10.199.249.10",
-    "10.90.4.11"
+    "10.90.4.11",
+    "10.90.4.12"
   ],
   "manager/internal/dockerproxy/office_test.go": [
     "10.90.4.10",
     "10.90.4.11",
     "10.90.5.11"
   ],
+  "manager/internal/dockerproxy/plugins_test.go": {
+    "10.90.4.0": "Synthetic plugin isolation or gateway identity fixture; no deployed host.",
+    "10.92.4.10": "Synthetic plugin isolation or gateway identity fixture; no deployed host.",
+    "10.92.4.12": "Synthetic plugin isolation or gateway identity fixture; no deployed host.",
+    "10.92.5.10": "Synthetic plugin isolation or gateway identity fixture; no deployed host.",
+    "10.92.5.11": "Synthetic plugin isolation or gateway identity fixture; no deployed host."
+  },
   "manager/internal/dockerproxy/proxy_test.go": [
     "10.199.4.0",
     "10.90.4.0",
@@ -165,6 +193,9 @@
     "10.90.1.10",
     "10.90.1.11"
   ],
+  "manager/internal/gateway/mcp/opencloud_test.go": {
+    "10.90.1.10": "Synthetic plugin isolation or gateway identity fixture; no deployed host."
+  },
   "manager/internal/gateway/mcp/pdf_test.go": [
     "10.90.1.10"
   ],
@@ -179,6 +210,12 @@
     "172.20.0.0",
     "172.20.0.5"
   ],
+  "manager/internal/lifecycle/assistant_gateway_test.go": {
+    "10.90.1.10": "Synthetic assistant network boundary fixture; no deployed host.",
+    "10.91.4.10": "Synthetic assistant network boundary fixture; no deployed host.",
+    "10.91.4.11": "Synthetic assistant network boundary fixture; no deployed host.",
+    "10.91.5.10": "Synthetic assistant network boundary fixture; no deployed host."
+  },
   "manager/internal/lifecycle/freecad_live_test.go": [
     "10.199.201.0"
   ],
@@ -195,6 +232,13 @@
   "manager/internal/router/freecad_test.go": [
     "10.90.1.12"
   ],
+  "manager/internal/router/plugins_test.go": {
+    "10.90.1.10": "Synthetic plugin isolation or gateway identity fixture; no deployed host.",
+    "10.91.1.10": "Synthetic plugin isolation or gateway identity fixture; no deployed host.",
+    "10.92.0.0": "Synthetic plugin isolation or gateway identity fixture; no deployed host.",
+    "10.92.1.11": "Synthetic plugin isolation or gateway identity fixture; no deployed host.",
+    "172.30.0.2": "Synthetic plugin isolation or gateway identity fixture; no deployed host."
+  },
   "manager/internal/router/router_test.go": [
     "10.90.1.10"
   ],
@@ -204,8 +248,17 @@
     "10.90.1.10",
     "10.90.4.0"
   ],
+  "manager/internal/runtime/profiles_test.go": {
+    "10.90.4.10": "Synthetic workload profile and private gateway fixture; no deployed host.",
+    "10.90.4.12": "Synthetic workload profile and private gateway fixture; no deployed host.",
+    "10.91.4.10": "Synthetic workload profile and private gateway fixture; no deployed host.",
+    "10.91.4.2": "Synthetic workload profile and private gateway fixture; no deployed host."
+  },
   "services/freecad/test_control.py": {
     "10.90.1.10": "Synthetic runtime peer: control API must reject it even with a valid token.",
     "10.90.1.3": "Synthetic manager peer: control API requires both this source and a valid token."
+  },
+  "manager/internal/gateway/llm/audit_test.go": {
+    "10.90.1.10": "Synthetic tenant source address for model policy, project ownership and compressed response regression tests."
   }
 }

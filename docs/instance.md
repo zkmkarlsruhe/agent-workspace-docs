@@ -66,8 +66,9 @@ Existing folder/trash conflicts and changed revision pins fail without overwriti
 or adopting data. A changed title changes the derived shared folder name.
 
 Existing projects pin their definition. After changing a revision, create a new
-project or plan an explicit shared-project migration. Current assistants share the
-person's runtime; prompts and tool settings are not a separate security boundary.
+project or reopen a shared assistant through its card. Assistant projects use
+[separate containers and storage](assistant-isolation.md); ordinary projects
+continue sharing the person's general environment.
 
 ## Project Capabilities
 

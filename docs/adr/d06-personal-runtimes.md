@@ -18,5 +18,7 @@ authenticated person to the portal.
 
 Deployment needs wildcard DNS and a certificate covering the base domain and
 runtime hostnames. Stopping the environment preserves personal storage.
-Projects belonging to one person share a runtime and are not separate security
-boundaries. A hostname alone never grants access.
+Ordinary projects belonging to one person share a runtime and are not separate
+security boundaries. Assistant projects use a dedicated runtime and private
+storage per project, as described in [assistant isolation](../assistant-isolation.md).
+A hostname alone never grants access.

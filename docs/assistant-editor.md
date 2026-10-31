@@ -31,8 +31,9 @@ not the image's assistant files. Shared assistant projects are refreshed after t
 normal audience and consent checks. A busy runtime must finish before its changed
 project configuration is reloaded; conversations are not cancelled. Already open
 conversations are not rewritten. Old project pins fail closed after a change;
-start through the assistant card to use the current settings. This does not add
-strict isolation to the shared runtime.
+start through the assistant card to use the current settings. Each assistant
+project runs in its own container, with private files, chat storage and managed
+configuration. See [assistant isolation](assistant-isolation.md).
 
 Audit events record actor, internal version/hash and action, without prompt or
 conversation text. Internal versions support concurrency and permission checks;
@@ -107,6 +108,5 @@ optional evaluation policy and permitted readers before staff release.
 | Source/account/consent revoked | Refuse new work; retain owner export/deletion access |
 | Assistant disabled or changed | New manager-created sessions reject obsolete pins |
 
-The current normal OpenCode entry flow shares the person's runtime. This change
-does not establish strict per-assistant isolation there. Fixture-test isolation
-must not be advertised as isolation of ordinary staff sessions.
+The normal assistant entry flow uses a dedicated project runtime. The editor's
+fixture test still does not exercise its live network or MCP grants.
