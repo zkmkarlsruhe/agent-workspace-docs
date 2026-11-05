@@ -159,4 +159,4 @@ service contract. A clean installation must pass the operator acceptance sequenc
 - Complete real-provider acceptance for optional connections; OpenCloud token exchange and authenticated DAV remain unverified in the temporary smoke test.
 - Check the office workflows, model behavior and access boundaries with the intended users and their files.
 - Keep public code and documentation releases aligned, including optional worker sources and setup instructions.
-- Scheduled runs, hosted project applications and mail sending remain future work. They require separate product and authorization decisions.
+- Scheduled runs and hosted project applications remain future work and require separate product and authorization decisions. [Plain-text mail submission](private-readers.md#plain-text-mail-submission) is implemented with a saved signature and per-message browser approval.

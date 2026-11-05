@@ -21,7 +21,7 @@ Go manager ------------------------> SQLite: identity, projects, usage
   |
   `-> OpenCode runtimes: one general environment per active person, plus isolated assistant projects
         |-> persistent workspace, config, data and state
-        |-> manager model gateway -> LiteLLM -> configured model endpoint
+        |-> manager model gateway -> configured model endpoint (direct or through LiteLLM)
         |-> manager integration gateways -> enabled services
         `-> egress proxy -> allowed package registries
 ```
@@ -36,7 +36,8 @@ requests reach the runtime.
 The example IdP is Authentik. Its proxy provider authenticates requests and
 supplies identity headers through the trusted edge proxy. The manager is not
 a generic OIDC client. A different IdP requires an adapter preserving this
-identity contract, including the expected bootstrap UID format.
+identity contract, including configured header mappings and a stable issuer/subject
+binding. See [identity configuration](IDENTITY.md).
 
 Only explicitly trusted proxy peers may provide identity headers, and the
 edge must replace client-supplied values. The configured issuer is stable
@@ -98,7 +99,8 @@ temporary writable mounts, dropped capabilities, no-new-privileges and
 resource limits. The reference instance requires the specific host UID mapping
 documented in [INSTALL.md](INSTALL.md).
 
-Each person has an internal network. Runtimes reach the manager's gateways
+Each personal runtime and each isolated assistant project has an internal network.
+Runtimes reach the manager's gateways
 and a restricted egress proxy; they do not receive unrestricted host or
 internet access. Web research, if enabled, uses manager tools with URL and
 destination checks. Untrusted pages and documents can still contain prompt

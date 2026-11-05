@@ -1,27 +1,43 @@
-# D49: Produce mail text without mailbox access
+# D49: Mail text, approved mailbox reads and plain-text sending
 
-Status: amended. Mailbox reads are optional and require browser approval; sending remains outside this decision.
+Status: amended on 1 November 2026 to allow explicitly approved plain-text sending.
 
 ## Context
 
-Writing text for a message does not require access to someone's mailbox or
-authority to send on their behalf.
+Writing a message does not require access to someone's mailbox or authority to
+send on their behalf. Reading and sending require separate, visible decisions.
 
 ## Decision
 
-Provide message text in the chat for the person to copy. Do not provide sending
-tools or the ability to create mailbox drafts.
+Keep ordinary mail drafting in the chat. Operators may enable
+[private readers and mail submission](../private-readers.md). Mailbox reads still
+require a manually unlocked [personal safe](../personal-safe.md) and approval for
+each operation. Credentials stay outside the chat runtime.
 
-An operator may enable [private readers](../private-readers.md). A person must
-unlock their [personal safe](../personal-safe.md) and approve each mailbox read
-in the browser. The worker uses the signed-in account name and the selected
-secret for read-only IMAP access to the configured server. Credentials never
-enter the chat runtime. No background mailbox polling is authorized by unlocking.
+`mail_send` permits one plain-text message after the person reviews the exact
+sender, To/Cc/Bcc, subject and complete body, including their saved signature,
+and explicitly clicks Send in the browser. The sender comes from the SSO account;
+the signature is entered by the person in Settings and appended unchanged by the
+manager. Missing signatures block submission. Signature or sender changes invalidate
+pending approval. No directory-based or generated signature is substituted.
+
+The disposable credential worker uses authenticated SMTP submission on port 587
+with mandatory verified STARTTLS. The operator fixes the server and sender domain.
+The tool cannot supply servers, sender identities, arbitrary headers or an HTML
+body. Optional PDF attachments are read through the existing scoped file boundary
+from the current project (5 files, 5 MiB total). File bytes are frozen before
+approval; the browser displays names and sizes. Existing cloud share links stay
+in the plain-text body; sending does not change cloud sharing permissions. Each approval is single-use and bound to the account, project,
+session, browser claim and selected safe entry/version.
 
 ## Consequences
 
-The person reviews and sends the text through their usual mail application.
-There is no delivery automation. Optional read access adds encrypted credentials,
-a temporary unlock lease and approval for each operation. Returned mail content
-enters the chat and may reach its configured model provider. Sending would require
-a separate decision, review flow and signature contract.
+The popover closes after the outcome and reports server acceptance, refusal or
+an uncertain result via toast. Acceptance is not proof of delivery. No automatic
+retry follows a timeout or disconnect; a new submission needs fresh approval.
+If any recipient is refused before DATA, the whole message is withheld.
+No Sent-folder copy or mailbox draft is created. Users can still copy a draft
+into their usual mail application when they need those features.
+
+SMTP protocol fixtures and browser tests cover the flow without real recipients.
+A real authenticated send is verified only after an explicitly approved test mail.

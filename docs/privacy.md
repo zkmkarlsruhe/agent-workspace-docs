@@ -83,11 +83,13 @@ deletion, contact the deployment operator; the current portal does not provide
 a consent-free route for those actions.
 
 Optional catalog selection and connecting a service are separate actions.
-They are not substitutes for a complete processing notice. Per-integration
-consent records and scoped transcript grants are specified for future service
-integrations, but their persistence and enforcement are not a general
-guarantee of the current deployment. Turning off a feature does not delete
-data it already stored.
+They are not substitutes for a complete processing notice. Installed extensions
+have persistent operator policies and grants. Required integration notices are
+versioned; users accept or withdraw them through the Extensions page. Access
+checks include the current base notice and required integration consent.
+This does not authorize arbitrary transcript access or implement the proposed
+stable service API. See [extension authority](extension-authority.md).
+Turning off a feature does not delete data it already stored.
 
 The account export contains visible project files and readable root-chat
 transcripts, including trashed projects and the personal settings for a full
@@ -144,12 +146,15 @@ of the owner’s runtime storage.
 | Evaluation after account deletion | Evaluations and personal feedback are deleted. Chat snapshots lose title, project and transcript; count stubs remain under the replacement identifier. Transcript-read audit records are separate and are not erased by this account deletion. |
 | Logs, backups, external services and downloaded copies | Not purged by the local account-deletion operation. The operator and each recipient must provide their own retention and deletion process. |
 
-The current account-deletion path is an ordered, retryable operation, not a
-durable background job. A credential revocation or provisioning failure can
-block it; database rows remain until the last step. Retry after fixing the
-failure and verify completion. Do not report a failed request as complete.
-The future deletion contract specifies persisted progress and integration
-acknowledgements, but those mechanisms are not implemented by this path.
+Account deletion records a durable operation and fences the current account
+incarnation before cleanup. Failed core cleanup is retried by the lifecycle loop;
+it cannot delete a newly created account with the same identity. Credential
+revocation or provisioning failures can block completion, and account rows remain
+until core cleanup reaches its final step. Required external deletion obligations
+survive core account removal and integration disablement. Services acknowledge
+after deleting their held data; operators can record resolution with evidence.
+See [extension deletion](extension-authority.md#account-deletion).
+Do not report a failed request or an outstanding external obligation as complete.
 
 For the optional Nextcloud connection, disconnecting or deleting the local
 account revokes the app password but leaves files in Nextcloud. Reads may

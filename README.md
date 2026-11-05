@@ -40,6 +40,7 @@ Read online at [GitHub Pages](https://zkmkarlsruhe.github.io/agent-workspace-doc
 - [instance.md](docs/instance.md)
 - [knowledge.md](docs/knowledge.md)
 - [mcp-server.md](docs/mcp-server.md)
+- [nextcloud-sharing.md](docs/nextcloud-sharing.md)
 - [opencloud.md](docs/opencloud.md)
 - [personal-safe.md](docs/personal-safe.md)
 - [privacy.md](docs/privacy.md)

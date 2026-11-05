@@ -18,7 +18,8 @@ with Concept and Try it paths.
 - [Managed container plugins](container-plugins.md)
 - [Instance configuration](instance.md)
 - [Assistant editor](assistant-editor.md) and [project isolation](assistant-isolation.md)
-- [Personal safe](personal-safe.md) and [SMB and mail readers](private-readers.md)
+- [Personal safe](personal-safe.md) and [SMB/mail reads and mail submission](private-readers.md)
+- [Browser-approved Nextcloud share links](nextcloud-sharing.md)
 - [Task templates](task-templates.md)
 - [File sources](file-sources.md)
 - [Architecture](architecture.md)
@@ -28,5 +29,11 @@ with Concept and Try it paths.
 - [Identity](IDENTITY.md)
 - [Contributing](https://github.com/zkmkarlsruhe/agent-workspace/blob/main/CONTRIBUTING.md)
 - [Security](https://github.com/zkmkarlsruhe/agent-workspace/blob/main/SECURITY.md)
+
+These guides describe the checked-in implementation. Optional capabilities require
+operator configuration and user grants. Provider fixtures and local tests do not
+establish acceptance against a real service; each integration guide records those
+limits. Scheduled project execution and hosted project applications remain future
+work. Task templates do not provide scheduling.
 
 Developed at ZKM | Center for Art and Media Karlsruhe

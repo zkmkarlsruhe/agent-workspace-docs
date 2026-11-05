@@ -22,12 +22,96 @@ input and can become part of the chat and its model requests.
   it does not mark messages read. Plain-text body parts are returned with explicit
   truncation flags; attachments and HTML-only bodies are not converted.
 
-The mail scan is bounded to 256 listed folders, 10,000 candidate messages and
-16 MiB of IMAP response data. Exceeding a scan limit fails explicitly, rather
-than returning an incomplete selection as the latest messages. Changes during a
-read can also fail it. The worker has a 35-second deadline; the manager allows
-45 seconds including container handling. There are four concurrent worker slots.
-There is no mail sending, mailbox draft creation, share write or background poll.
+- `mail_folders`: inspect the mailbox hierarchy, including Archive, Sent and
+  non-selectable parent folders. Returns actual hierarchy delimiters and parent
+  paths, 200 entries per page. Continue with `next_offset` until it is null;
+  `prefix` narrows the returned names. Listing reads no message bodies.
+- `mail_search`: search one folder, optionally including its descendants, by
+  sender, recipient, subject, text, receipt dates and unread status. Filters are
+  ANDed. `since` includes the date; `before` excludes it. Results contain up to
+  20 messages, newest first, with `next_offset` for further pages.
+- `mail_read`: read one exact message using its returned folder, `uid` and
+  `uidvalidity`. A changed mailbox identity or missing UID fails explicitly.
+- `mail_thread`: find messages with exact Message-ID, References or In-Reply-To
+  links to a chosen ID, oldest first, 20 per page. Prefer the returned `thread_root`.
+  Equal subjects alone do not establish a relationship. Missing or malformed
+  references, and messages outside the chosen folders, can leave gaps; the result
+  explicitly does not guarantee a complete conversation.
+
+Search and thread reads default to INBOX. Set `folder` to a name returned by
+`mail_folders`; add `recursive: true` for its descendants. An empty folder with
+`recursive: true` includes all selectable folders, including Sent. If that scope
+exceeds a limit, narrow it instead of treating a partial scan as complete.
+Search runs on the IMAP server with escaped literal criteria and UTF-8 charset;
+servers that reject that charset fail explicitly. No raw IMAP commands are accepted.
+
+Each page, exact read and related-mail lookup needs its own browser approval.
+The popover shows folder scope, filters and pagination before approval. Reading
+an already returned result file does not access the mailbox or require another
+approval. Changes between calls can shift offset pages; use the returned stable
+message identifiers when selecting a particular mail.
+
+The legacy recent-mail scan is bounded to 256 listed folders and 10,000 messages.
+Folder discovery allows up to 10,000 listed folders; recursive search allows up
+to 256 selectable folders and 10,000 matching messages per call. Every operation
+has a 16 MiB IMAP response budget. Limits fail explicitly. The worker has a
+35-second deadline; the manager allows 45 seconds including container handling.
+There are four concurrent worker slots. Bodies remain bounded plain text with
+truncation indicators; HTML-only bodies and attachments are not converted.
+There is no mailbox draft creation, share write or background poll. Optional plain-text
+mail submission is described below.
+
+## Plain-text mail submission
+
+`mail_send` accepts `to`, optional `cc` and `bcc`, `subject`, `body` without a
+signature, and optional `attachments` containing PDF paths relative to the current project. It uses the signed-in SSO email address as sender. The person must first
+save their approved plain-text signature in **Settings → Mail signature**. The
+manager appends that signature unchanged, separated by `-- ` on its own line.
+A missing signature blocks sending. Changes to sender or signature invalidate
+pending requests; prepare a fresh message for review.
+
+The browser displays the full sender, recipient lists (including Bcc), subject,
+and body with signature. Unlocking the safe does not send. A fresh click on
+**Send this mail now** approves this exact message once, using the selected safe
+entry. The popover closes after submission and reports the outcome by toast.
+The result returns to the requesting chat session too.
+
+The body uses `text/plain` UTF-8; HTML-looking text remains literal text.
+PDF attachments use standard multipart MIME, at most 5 files and 5 MiB total.
+Fetch cloud PDFs into the current project with `nextcloud_fetch` or
+`nextcloud_share_fetch`; export other documents to PDF first. Put existing cloud
+share links in `body` when requested. Sending does not create public shares.
+The browser shows attachment names and byte sizes. The manager freezes the file
+bytes before requesting approval, so edits after preview cannot change the mail.
+Only regular files from the bound project are read; hidden paths and symlinks are
+refused. No arbitrary headers, sender override or Sent-folder copy are supported.
+Use bare ASCII addresses without display names, at most 50 distinct recipients
+across all lists. Subject is limited to 512 UTF-8 bytes; input body to 32 KiB;
+saved signature to 1000 characters and 4096 bytes. Bcc is used only in the SMTP
+envelope, never in message headers. All recipients must be accepted before DATA.
+
+SMTP server acceptance does not prove delivery. A timeout, disconnect or lost
+response after approval can mean the message was already sent. Never retry
+submission automatically. Check the outcome before preparing another request;
+every new submission requires another explicit browser approval.
+
+Submission is disabled unless the content-addressed operator policy includes:
+
+```json
+"submission": {"host": "mail.example.org", "port": 587, "sender_domain": "example.org"}
+```
+
+This is an additional top-level policy field; preserve the existing `version`,
+`enabled`, `smb` and `mail` sections. Permit TCP 587 only to that fixed server from
+the isolated credential network and add its fixed address to `OC_CREDENTIAL_HOSTS`
+if it differs from the IMAP host. STARTTLS certificate and hostname validation and
+SMTP authentication are mandatory. No anonymous relay or plaintext fallback exists.
+The manager, Docker proxy and worker must use the same new policy path and image.
+
+Tests cover synthetic SMTP success/refusal/uncertain outcomes, TLS failure,
+recipient validation, unchanged signatures, exact one-shot approval, wrong-owner
+and wrong-tab rejection, and browser preview/notifications. Real mailbox sending
+requires a separately approved test message; fixture success is not a delivery claim.
 
 ## Build and configure
 
@@ -119,6 +203,9 @@ enabling users, test the deployed configuration with a dedicated test account:
 2. Approve one allowed directory listing and file read; verify the result.
 3. Approve a mail read with known messages in INBOX and a child folder, including
    read and unread messages. Confirm ordering and unchanged read flags.
+   List a hierarchy with more than 200 entries and follow its continuation;
+   search a folder outside INBOX, read a returned UID, and follow reply references
+   across the chosen folders. Confirm that the approval shows the exact selection.
 4. Reject a request and confirm no result is delivered. Lock the safe and confirm
    subsequent reads require a new unlock and approval.
 5. Verify the egress firewall denies other destinations and the disposable worker
@@ -126,3 +213,13 @@ enabling users, test the deployed configuration with a dedicated test account:
 
 Do not use real passwords in command lines or test fixtures. A successful local
 test suite does not establish server compatibility or correct host firewall rules.
+
+## Protocol references
+
+- [IMAP4rev1: mailbox hierarchy, UIDVALIDITY, SEARCH and BODY.PEEK](https://www.rfc-editor.org/rfc/rfc3501.html).
+- [IMAP threading algorithms](https://www.rfc-editor.org/rfc/rfc5256.html).
+  The related-mail lookup uses explicit reference headers; it does not implement
+  the complete server THREAD/REFERENCES algorithm or subject-based fallback.
+
+SMTP implementation uses the standard-library [SMTP client](https://docs.python.org/3/library/smtplib.html)
+and [EmailMessage](https://docs.python.org/3/library/email.message.html).

@@ -1,6 +1,6 @@
 # D58: Restrict cloud-file writes to a transfer folder
 
-Status: accepted for the optional Nextcloud integration.
+Status: amended on 1 November 2026 for browser-approved public share creation.
 
 ## Context
 
@@ -18,6 +18,9 @@ conflicts as separate copies instead of overwriting an unknown version.
 
 Every request using the app password passes the same method, host and
 normalized-path guard. Shared collections are read-only sources. Calendars,
-contacts, mail, sharing administration and other unrelated service APIs are
-outside the allowed operations. Disconnecting or deleting the local account
+contacts, mail and unrelated service APIs remain outside the allowed operations.
+The sole sharing exception is creation of a public link after explicit browser
+approval of one path and browser-selected access, password and expiry. General
+share listing, modification and deletion remain blocked. The tool receives only
+the resulting URL. See [Nextcloud share links](../nextcloud-sharing.md). Disconnecting or deleting the local account
 revokes the credential but leaves remote files for the person to manage.
